@@ -25,5 +25,11 @@ Game.belongsTo(User, {
 	foreignKey: "player",
 	as: "player2",
 });
+Game.belongsTo(User, {
+	allowNull: true,
+	targetKey: "id",
+	foreignKey: "winner",
+	as: "winPlayer",
+});
 
 export default Game;
