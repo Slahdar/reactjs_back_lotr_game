@@ -1,9 +1,12 @@
 import chalk from "chalk";
+//pour fastify
 import fastify from "fastify";
 import fastifyBcrypt from "fastify-bcrypt";
 import cors from "@fastify/cors";
 import fastifySwagger from "@fastify/swagger";
 import fastifySwaggerUi from "@fastify/swagger-ui";
+import fastifyJWT from "@fastify/jwt";
+//bdd
 import { sequelize } from "./bdd.js";
 import {
 	getUserById,
@@ -11,6 +14,7 @@ import {
 	loginUser,
 	registerUser,
 } from "./controllers/users.js";
+import { createGame, joinGame } from "./controllers/games.js";
 //Test de la connexion
 try {
 	sequelize.authenticate();
@@ -25,59 +29,71 @@ try {
  */
 const app = fastify();
 //Ajout du plugin fastify-bcrypt pour le hash du mdp
-await app.register(fastifyBcrypt, {
-	saltWorkFactor: 12,
-});
-await app.register(cors, {
-	origin: "*",
-});
-await app.register(fastifySwagger, {
-	openapi: {
-		openapi: "3.0.0",
-		info: {
-			title: "Documentation de l'API JDR LOTR",
-			description:
-				"API développée pour un exercice avec React avec Fastify et Sequelize",
-			version: "0.1.0",
+await app
+	.register(fastifyBcrypt, {
+		saltWorkFactor: 12,
+	})
+	.register(cors, {
+		origin: "*",
+	})
+	.register(fastifySwagger, {
+		openapi: {
+			openapi: "3.0.0",
+			info: {
+				title: "Documentation de l'API JDR LOTR",
+				description:
+					"API développée pour un exercice avec React avec Fastify et Sequelize",
+				version: "0.1.0",
+			},
 		},
-	},
-});
-await app.register(fastifySwaggerUi, {
-	routePrefix: "/documentation",
-	theme: {
-		title: "Docs - JDR LOTR API",
-	},
-	uiConfig: {
-		docExpansion: "list",
-		deepLinking: false,
-	},
-	uiHooks: {
-		onRequest: function (request, reply, next) {
-			next();
+	})
+	.register(fastifySwaggerUi, {
+		routePrefix: "/documentation",
+		theme: {
+			title: "Docs - JDR LOTR API",
 		},
-		preHandler: function (request, reply, next) {
-			next();
+		uiConfig: {
+			docExpansion: "list",
+			deepLinking: false,
 		},
-	},
-	staticCSP: true,
-	transformStaticCSP: (header) => header,
-	transformSpecification: (swaggerObject, request, reply) => {
-		return swaggerObject;
-	},
-	transformSpecificationClone: true,
-});
+		uiHooks: {
+			onRequest: function (request, reply, next) {
+				next();
+			},
+			preHandler: function (request, reply, next) {
+				next();
+			},
+		},
+		staticCSP: true,
+		transformStaticCSP: (header) => header,
+		transformSpecification: (swaggerObject, request, reply) => {
+			return swaggerObject;
+		},
+		transformSpecificationClone: true,
+	})
+	.register(fastifyJWT, {
+		secret: "unanneaupourlesgouvernertous",
+	});
 /**********
  * Routes
  **********/
 app.get("/", (request, reply) => {
 	reply.send({ documentationURL: "http://localhost:3000/documentation" });
 });
+// Fonction pour décoder et vérifier le token
+app.decorate("authenticate", async (request, reply) => {
+	try {
+		await request.jwtVerify();
+	} catch (err) {
+		reply.send(err);
+	}
+});
 /**
  * gestion utilisateurs
  */
 //connexion
 app.post("/login", async (request, reply) => {
-	reply.send(await loginUser(request.body, app.bcrypt));
+	reply.send(await loginUser(request.body, app));
 });
 //inscription
 app.post("/register", async (request, reply) => {
@@ -91,7 +107,29 @@ app.get("/users", async (request, reply) => {
 app.get("/users/:id", async (request, reply) => {
 	reply.send(await getUserById(request.params.id));
 });
+/**
+ * gestion des jeux
+ */
+//création d'un jeu
+app.post(
+	"/game",
+	{ preHandler: [app.authenticate] },
+	async (request, reply) => {
+		reply.send(await createGame(request.body.userId));
+	}
+);
+//rejoindre un jeu
+app.patch(
+	"/game/:gameId",
+	{ preHandler: [app.authenticate] },
+	async (request, reply) => {
+		reply.send(await joinGame(request.params.gameId, request.body.userId));
+	}
+);
 
+/**********
+ * START
+ **********/
 const start = async () => {
 	try {
 		await sequelize

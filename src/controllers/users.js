@@ -35,18 +35,35 @@ export async function findAndCountAllUsersByEmail(email) {
 		},
 	});
 }
+export async function findAndCountAllUsersByUsername(username) {
+	return await User.findAndCountAll({
+		where: {
+			username: {
+				[Op.eq]: username,
+			},
+		},
+	});
+}
 export async function registerUser(userDatas, bcrypt) {
 	if (!userDatas) {
 		return { error: "Aucune donnée à enregistrer" };
 	}
-	const { firstname, lastname, email, password } = userDatas;
-	if (!firstname || !lastname || !email || !password) {
+	const { firstname, lastname, username, email, password } = userDatas;
+	if (!firstname || !lastname || !username || !email || !password) {
 		return { error: "Tous les champs sont obligatoires" };
 	}
 	//vérification que l'email n'est pas déjà utilisé
-	const { count } = await findAndCountAllUsersByEmail(email);
-	if (count > 0) {
+	const { count: emailCount } = await findAndCountAllUsersByEmail(email);
+	if (emailCount > 0) {
 		return { error: "L'adresse email est déjà utilisée." };
+	}
+
+	//vérification que le pseudo n'est pas déjà utilisé
+	const { count: usernameCount } = await findAndCountAllUsersByUsername(
+		username
+	);
+	if (usernameCount > 0) {
+		return { error: "Le nom d'utilisateur est déjà utilisé." };
 	}
 	//création de l'identifiant
 	let id = await generateID(
@@ -59,12 +76,14 @@ export async function registerUser(userDatas, bcrypt) {
 		id,
 		firstname,
 		lastname,
+		username,
 		email,
 		password: hashedPassword,
 	};
 	return await User.create(user);
 }
-export async function loginUser(userDatas, bcrypt) {
+export async function loginUser(userDatas, app) {
+	console.log(app);
 	if (!userDatas) {
 		return { error: "Aucune donnée n'a été envoyée" };
 	}
@@ -92,9 +111,11 @@ export async function loginUser(userDatas, bcrypt) {
 		},
 	});
 	//comparaison des mots de passe
-	const match = await bcrypt.compare(password, user.password);
+	const match = await app.bcrypt.compare(password, user.password);
 	if (!match) {
 		return { error: "Mot de passe incorrect" };
 	}
-	return user;
+	// Générer le JWT après une authentification réussie
+	const token = app.jwt.sign({ id: user.id, username: user.username });
+	return { token };
 }
