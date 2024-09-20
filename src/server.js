@@ -27,6 +27,7 @@ try {
  * API
  * avec fastify
  */
+let blacklistedTokens = [];
 const app = fastify();
 //Ajout du plugin fastify-bcrypt pour le hash du mdp
 await app
@@ -83,6 +84,14 @@ app.get("/", (request, reply) => {
 // Fonction pour décoder et vérifier le token
 app.decorate("authenticate", async (request, reply) => {
 	try {
+		const token = request.headers["authorization"].split(" ")[1];
+
+		// Vérifier si le token est dans la liste noire
+		if (blacklistedTokens.includes(token)) {
+			return reply
+				.status(401)
+				.send({ error: "Token invalide ou expiré" });
+		}
 		await request.jwtVerify();
 	} catch (err) {
 		reply.send(err);
@@ -94,7 +103,18 @@ app.decorate("authenticate", async (request, reply) => {
 //connexion
 app.post("/login", async (request, reply) => {
 	reply.send(await loginUser(request.body, app));
-});
+}).post(
+	"/logout",
+	{ preHandler: [app.authenticate] },
+	async (request, reply) => {
+		const token = request.headers["authorization"].split(" ")[1]; // Récupérer le token depuis l'en-tête Authorization
+
+		// Ajouter le token à la liste noire
+		blacklistedTokens.push(token);
+
+		reply.send({ logout: true });
+	}
+);
 //inscription
 app.post("/register", async (request, reply) => {
 	reply.send(await registerUser(request.body, app.bcrypt));

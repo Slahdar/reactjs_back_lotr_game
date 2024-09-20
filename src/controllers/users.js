@@ -83,7 +83,6 @@ export async function registerUser(userDatas, bcrypt) {
 	return await User.create(user);
 }
 export async function loginUser(userDatas, app) {
-	console.log(app);
 	if (!userDatas) {
 		return { error: "Aucune donnée n'a été envoyée" };
 	}
@@ -116,6 +115,9 @@ export async function loginUser(userDatas, app) {
 		return { error: "Mot de passe incorrect" };
 	}
 	// Générer le JWT après une authentification réussie
-	const token = app.jwt.sign({ id: user.id, username: user.username });
+	const token = app.jwt.sign(
+		{ id: user.id, username: user.username },
+		{ expiresIn: "3h" }
+	);
 	return { token };
 }
