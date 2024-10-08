@@ -1,5 +1,7 @@
 import User from "../models/users.js";
 import { Op } from "sequelize";
+import nodemailer from 'nodemailer';
+import { v4 as uuidv4 } from 'uuid';
 
 async function generateID(id) {
 	const { count } = await findAndCountAllUsersById(id);
@@ -35,6 +37,7 @@ export async function findAndCountAllUsersByEmail(email) {
 		},
 	});
 }
+
 export async function findAndCountAllUsersByUsername(username) {
 	return await User.findAndCountAll({
 		where: {
@@ -44,6 +47,7 @@ export async function findAndCountAllUsersByUsername(username) {
 		},
 	});
 }
+
 export async function registerUser(userDatas, bcrypt) {
 	if (!userDatas) {
 		return { error: "Aucune donnée à enregistrer" };
@@ -80,8 +84,35 @@ export async function registerUser(userDatas, bcrypt) {
 		email,
 		password: hashedPassword,
 	};
-	return await User.create(user);
+	const newUser = await User.create(user);
+
+	const verificationToken = uuidv4();
+	const confirmationUrl = `http://localhost:3000/verify-email?token=${verificationToken}`;
+	await User.update({ verificationToken }, { where: { id: newUser.id } });
+
+	const transporter = nodemailer.createTransport({
+		host: 'smtp.mail.yahoo.com',
+		port: 587,
+		secure: false, 
+		auth: {
+		  user: 'mchostak@yahoo.fr', 
+		  pass: 'ypdgcpioamhpvakc',
+		},
+	  });
+	  
+	  // Exemple d'envoi d'email
+	  const mailOptions = {
+		from: 'mchostak@yahoo.fr',
+		to: email,
+		subject: 'Test Email avec Yahoo', 
+		text: `Cliquez sur le lien suivant pour confirmer votre adresse email : ${confirmationUrl}`,
+	  };
+
+	await transporter.sendMail(mailOptions);
+
+	return newUser;
 }
+
 export async function loginUser(userDatas, app) {
 	if (!userDatas) {
 		return { error: "Aucune donnée n'a été envoyée" };

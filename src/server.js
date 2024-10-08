@@ -11,6 +11,7 @@ import { usersRoutes } from "./routes/users.js";
 import { gamesRoutes } from "./routes/games.js";
 //bdd
 import { sequelize } from "./bdd.js";
+import User from "./models/users.js";
 
 //Test de la connexion
 try {
@@ -94,6 +95,32 @@ app.decorate("authenticate", async (request, reply) => {
 		reply.send(err);
 	}
 });
+
+app.get("/verify-email", async (request, reply) => {
+	const { token } = request.query;
+
+	if (!token) {
+		return reply.status(400).send({ error: "Token de vérification manquant." });
+	}
+
+	try {
+		const user = await User.findOne({ where: { verificationToken: token } });
+
+		if (!user) {
+			return reply.status(404).send({ error: "Utilisateur non trouvé ou token invalide." });
+		}
+
+		await User.update(
+			{ verified: true, verificationToken: null },
+			{ where: { id: user.id } }
+		);
+		return reply.send({ message: "Votre adresse email a été vérifiée avec succès !" });
+	} catch (error) {
+		console.error("Erreur lors de la vérification de l'email :", error);
+		return reply.status(500).send({ error: "Une erreur est survenue lors de la vérification." });
+	}
+});
+
 //gestion utilisateur
 usersRoutes(app);
 //gestion des jeux
