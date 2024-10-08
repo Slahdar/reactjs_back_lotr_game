@@ -1,34 +1,43 @@
-import {
-	getUserById,
-	getUsers,
-	loginUser,
-	registerUser,
-} from "../controllers/users.js";
+import { getUserById,getUsers,loginUser,registerUser } from "../controllers/users.js";
+
+
 export function usersRoutes(app) {
-	app.post("/login", async (request, reply) => {
-		reply.send(await loginUser(request.body, app));
-	}).post(
-		"/logout",
-		{ preHandler: [app.authenticate] },
-		async (request, reply) => {
-			const token = request.headers["authorization"].split(" ")[1]; // Récupérer le token depuis l'en-tête Authorization
+    // Route de connexion
+    app.post("/signin", async (request, reply) => {
+        const response = await loginUser(request.body, app);
+        if (response.error) {
+            return reply.status(400).send(response);
+        }
+        reply.send(response); // Renvoie le token ou le succès
+    });
 
-			// Ajouter le token à la liste noire
-			blacklistedTokens.push(token);
+    // Route de déconnexion
+    app.post("/logout", { preHandler: [app.authenticate] }, async (request, reply) => {
+        const token = request.headers["authorization"].split(" ")[1];
+        reply.send({ logout: true }); // Renvoie succès
+    });
 
-			reply.send({ logout: true });
-		}
-	);
-	//inscription
-	app.post("/register", async (request, reply) => {
-		reply.send(await registerUser(request.body, app.bcrypt));
-	});
-	//récupération de la liste des utilisateurs
-	app.get("/users", async (request, reply) => {
-		reply.send(await getUsers());
-	});
-	//récupération d'un utilisateur par son id
-	app.get("/users/:id", async (request, reply) => {
-		reply.send(await getUserById(request.params.id));
-	});
+    // Route d'inscription
+    app.post("/signup", async (request, reply) => {
+        const response = await registerUser(request.body, app.bcrypt);
+        if (response.error) {
+            return reply.status(400).send(response); // En cas d'erreur, statut 400
+        }
+        reply.send(response); // Renvoie utilisateur créé
+    });
+
+    // Route pour récupérer tous les utilisateurs
+    app.get("/users", async (request, reply) => {
+        const users = await getUsers();
+        reply.send(users); // Renvoie liste d'utilisateurs
+    });
+
+    // Route pour récupérer un utilisateur par ID
+    app.get("/users/:id", async (request, reply) => {
+        const user = await getUserById(request.params.id);
+        if (!user) {
+            return reply.status(404).send({ error: "Utilisateur non trouvé" }); 
+        }
+        reply.send(user); // Renvoie l'utilisateur trouvé
+    });
 }
