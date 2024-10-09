@@ -9,6 +9,12 @@ import fastifyJWT from "@fastify/jwt";
 //routes
 import { usersRoutes } from "./routes/users.js";
 import { gamesRoutes } from "./routes/games.js";
+import { factionRoutes } from "./routes/faction.js";
+import { regionRoutes } from "./routes/region.js";
+import { landRoutes } from "./routes/land.js";
+import { creatureRoutes } from "./routes/creature.js";
+import { commanderRoutes } from "./routes/commander.js";
+import { effectRoutes } from "./routes/effect.js";
 //bdd
 import { sequelize } from "./bdd.js";
 import User from "./models/users.js";
@@ -125,6 +131,12 @@ app.get("/verify-email", async (request, reply) => {
 usersRoutes(app);
 //gestion des jeux
 gamesRoutes(app);
+factionRoutes(app);
+regionRoutes(app);
+landRoutes(app);
+creatureRoutes(app);
+commanderRoutes(app);
+effectRoutes(app);
 
 /**********
  * START
